@@ -9,32 +9,23 @@ export default async function handler(req, res) {
 
   try {
     if (t === 'BTC-USD') {
-      const r = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=3650&interval=monthly', {
-        headers: { 'Accept': 'application/json' }
-      });
+      const url = 'https://query2.finance.yahoo.com/v8/finance/chart/BTC-USD?interval=1mo&range=max&corsDomain=finance.yahoo.com';
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
       const json = await r.json();
-      const timestamps = json.prices.map(p => Math.floor(p[0] / 1000));
-      const closes = json.prices.map(p => p[1]);
-      return res.status(200).json({ chart: { result: [{ timestamp: timestamps, indicators: { quote: [{ close: closes }] } }] } });
+      if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data for BTC' });
+      return res.status(200).json(json);
     }
 
     if (t === 'JPY') {
-      const r = await fetch('https://api.coingecko.com/api/v3/coins/usd-coin/market_chart?vs_currency=jpy&days=3650&interval=monthly', {
-        headers: { 'Accept': 'application/json' }
-      });
+      const url = 'https://query2.finance.yahoo.com/v8/finance/chart/JPY=X?interval=1mo&range=max&corsDomain=finance.yahoo.com';
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
       const json = await r.json();
-      const timestamps = json.prices.map(p => Math.floor(p[0] / 1000));
-      const closes = json.prices.map(p => p[1]);
-      return res.status(200).json({ chart: { result: [{ timestamp: timestamps, indicators: { quote: [{ close: closes }] } }] } });
+      if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data for JPY' });
+      return res.status(200).json(json);
     }
 
     const url = 'https://query2.finance.yahoo.com/v8/finance/chart/' + t + '?interval=1mo&range=max&corsDomain=finance.yahoo.com';
-    const r = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json',
-      }
-    });
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
     const json = await r.json();
     if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data' });
     return res.status(200).json(json);
