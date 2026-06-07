@@ -185,10 +185,16 @@ async function loadChart() {
             }
           }
         },
-        scales: {
-          x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
-          y: { ticks: { color: '#888' }, grid: { color: '#2a2a3a' } }
-        }
+       scales: {
+  x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
+  y: {
+    ticks: { color: '#888' },
+    grid: {
+      color: ctx => ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a',
+      lineWidth: ctx => ctx.tick.value === 100 ? 2 : 1
+    }
+  }
+},
       }
     });
   } catch(e) {
