@@ -6,7 +6,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'ticker is required' });
   }
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1mo&range=max`;
+  const decodedTicker = decodeURIComponent(ticker);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${decodedTicker}?interval=1mo&range=max`;
 
   try {
     const response = await fetch(url, {
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!data.chart?.result?.[0]) {
-      return res.status(404).json({ error: 'No data found', ticker });
+      return res.status(404).json({ error: 'No data found', decodedTicker });
     }
 
     return res.status(200).json(data);
