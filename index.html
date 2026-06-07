@@ -16,14 +16,13 @@
   .checkboxes label { display: flex; align-items: center; gap: 6px; background: #2a2a3e; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.88rem; border: 1px solid #333; }
   .checkboxes label:hover { border-color: #818cf8; }
   .checkboxes input[type=checkbox] { accent-color: #818cf8; width: 15px; height: 15px; }
-  .denominator-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   select { background: #2a2a3e; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem; }
   button { background: #4f46e5; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; cursor: pointer; font-size: 0.95rem; }
   button:hover { background: #4338ca; }
   .chart-box { background: #1e1e2e; border-radius: 12px; padding: 20px; max-width: 720px; margin: 0 auto; }
   .chart-title { text-align: center; font-size: 0.95rem; color: #ccc; margin-bottom: 16px; }
   .note { text-align: center; font-size: 0.75rem; color: #555; margin-top: 16px; }
-  .loading { text-align: center; color: #888; padding: 40px; }
+  .loading { text-align: center; color: #888; padding: 20px; }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #ccc; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
@@ -36,17 +35,14 @@
 
 <div class="panel">
   <div class="panel-title">📐 物差し（分母）を選ぶ</div>
-  <div class="denominator-row">
-    <select id="denominator">
-      <option value="GLD">金（GLD）</option>
-      <option value="VT">オルカン（VT）</option>
-      <option value="SPY">S&P500（SPY）</option>
-      <option value="BTC-USD">Bitcoin</option>
-      <option value="USDJPY=X">円（対ドル）</option>
-      <option value="SLV">銀（SLV）</option>
-    </select>
-    <span style="color:#555;font-size:0.85rem;">で測る</span>
-  </div>
+  <select id="denominator">
+    <option value="GLD">金（GLD）</option>
+    <option value="VT">オルカン（VT）</option>
+    <option value="SPY">S&P500（SPY）</option>
+    <option value="BTC-USD">Bitcoin</option>
+    <option value="SLV">銀（SLV）</option>
+  </select>
+  <span style="color:#555;font-size:0.85rem;margin-left:8px;">で測る</span>
 </div>
 
 <div class="panel">
@@ -56,7 +52,7 @@
     <label><input type="checkbox" value="VT"> オルカン</label>
     <label><input type="checkbox" value="GLD"> 金</label>
     <label><input type="checkbox" value="BTC-USD"> Bitcoin</label>
-    <label><input type="checkbox" value="JPY=X"> 円</label>
+    <label><input type="checkbox" value="JPY"> 円</label>
     <label><input type="checkbox" value="QQQ"> NASDAQ100</label>
     <label><input type="checkbox" value="EWJ"> TOPIX連動</label>
     <label><input type="checkbox" value="SLV"> 銀</label>
@@ -74,9 +70,9 @@
 <div class="chart-box">
   <div class="chart-title" id="chart-title">物差しと対象を選んで「表示する」を押してください</div>
   <div class="legend" id="legend"></div>
-  <div class="loading" id="loading" style="display:none;">データ取得中...</div>
+  <div class="loading" id="loading" style="display:none;"></div>
   <canvas id="myChart" style="display:none;"></canvas>
-  <p class="note">※ データはYahoo Finance経由。ETF価格での代用を含みます。最大期間表示。</p>
+  <p class="note">※ データはstooq・CoinGecko・frankfurter経由。ETF価格での代用を含みます。</p>
 </div>
 
 <script>
@@ -84,15 +80,17 @@ const COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a7
 
 const LABELS = {
   'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin',
-  'JPY=X':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀',
+  'JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀',
   'USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債'
 };
 
 let myChart = null;
 
 async function fetchData(ticker) {
-  const res = await fetch(`/api/proxy?ticker=${encodeURIComponent(ticker)}`);
+  const res = await fetch('/api/proxy?ticker=' + encodeURIComponent(ticker));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   const json = await res.json();
+  if (!json.chart || !json.chart.result || !json.chart.result[0]) throw new Error('no result');
   const result = json.chart.result[0];
   return {
     timestamps: result.timestamp,
@@ -102,17 +100,18 @@ async function fetchData(ticker) {
 
 function toMap(data) {
   const m = {};
-  data.timestamps.forEach((t, i) => { if (data.closes[i] != null) m[t] = data.closes[i]; });
+  data.timestamps.forEach(function(t, i) {
+    if (data.closes[i] != null) m[t] = data.closes[i];
+  });
   return m;
 }
 
 async function loadChart() {
   const den = document.getElementById('denominator').value;
-  const checks = [...document.querySelectorAll('#numerators input:checked')].map(c => c.value);
+  const checked = document.querySelectorAll('#numerators input:checked');
+  const nums = Array.from(checked).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
 
-  if (checks.length === 0) { alert('測る対象を1つ以上選んでください'); return; }
-  const nums = checks.filter(v => v !== den);
-  if (nums.length === 0) { alert('物差しと異なる対象を選んでください'); return; }
+  if (nums.length === 0) { alert('物差しと異なる対象を1つ以上選んでください'); return; }
 
   const loading = document.getElementById('loading');
   const canvas = document.getElementById('myChart');
@@ -125,45 +124,64 @@ async function loadChart() {
   legendEl.innerHTML = '';
   title.textContent = 'データ取得中...';
 
-  try {
-    const tickers = [...new Set([...nums, den])];
-    const results = await Promise.allSettled(tickers.map(t => fetchData(t))); tickers.forEach((t, i) => {   if (results[i].status === 'fulfilled') {     maps[t] = toMap(results[i].value);   } });
-    const maps = {};
+  const tickers = Array.from(new Set(nums.concat([den])));
+  const maps = {};
 
-    const denMap = maps[den];
-    const datasets = [];
+  await Promise.all(tickers.map(async function(t) {
+    try {
+      const data = await fetchData(t);
+      maps[t] = toMap(data);
+    } catch(e) {
+      console.warn('failed:', t, e.message);
+    }
+  }));
 
-    nums.forEach((num, idx) => {
-      const numMap = maps[num];
-      const common = Object.keys(numMap).filter(t => denMap[t]).sort((a,b)=>a-b);
-      if (common.length === 0) return;
+  if (!maps[den]) {
+    loading.textContent = '物差しのデータ取得に失敗しました。';
+    return;
+  }
 
-      const ratios = common.map(t => numMap[t] / denMap[t]);
-      const base = ratios[0];
-      const normalized = ratios.map(r => parseFloat((r / base * 100).toFixed(2)));
-      const labels = common.map(t => new Date(t * 1000).toLocaleDateString('ja-JP', { year:'numeric', month:'short' }));
+  const denMap = maps[den];
+  const datasets = [];
 
-      datasets.push({ ticker: num, labels, data: normalized, color: COLORS[idx % COLORS.length] });
+  nums.forEach(function(num, idx) {
+    if (!maps[num]) return;
+    const numMap = maps[num];
+    const common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort(function(a,b){return a-b;});
+    if (common.length === 0) return;
+
+    const ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
+    const base = ratios[0];
+    const normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
+    const labels = common.map(function(t) {
+      return new Date(t * 1000).toLocaleDateString('ja-JP', { year:'numeric', month:'short' });
     });
 
-    if (datasets.length === 0) { throw new Error('no data'); }
+    datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
+  });
 
-    const allLabels = datasets.reduce((a, d) => d.labels.length > a.length ? d.labels : a, []);
+  if (datasets.length === 0) {
+    loading.textContent = '表示できるデータがありませんでした。';
+    return;
+  }
 
-    title.textContent = `物差し：${LABELS[den] || den}`;
-    loading.style.display = 'none';
-    canvas.style.display = 'block';
+  const allLabels = datasets.reduce(function(a, d) { return d.labels.length > a.length ? d.labels : a; }, []);
 
-    legendEl.innerHTML = datasets.map(d =>
-      `<div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${LABELS[d.ticker] || d.ticker}</div>`
-    ).join('');
+  title.textContent = '物差し：' + (LABELS[den] || den);
+  loading.style.display = 'none';
+  canvas.style.display = 'block';
 
-    if (myChart) myChart.destroy();
-    myChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: allLabels,
-        datasets: datasets.map(d => ({
+  legendEl.innerHTML = datasets.map(function(d) {
+    return '<div class="legend-item"><div class="legend-dot" style="background:' + d.color + '"></div>' + (LABELS[d.ticker] || d.ticker) + '</div>';
+  }).join('');
+
+  if (myChart) myChart.destroy();
+  myChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: datasets.map(function(d) {
+        return {
           label: LABELS[d.ticker] || d.ticker,
           data: d.data,
           borderColor: d.color,
@@ -171,36 +189,32 @@ async function loadChart() {
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.3
-        }))
-      },
-      options: {
-        responsive: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}：${ctx.parsed.y}`
-            }
+        };
+      })
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ctx.dataset.label + '：' + ctx.parsed.y; }
           }
-        },
-       scales: {
-  x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
-  y: {
-    ticks: { color: '#888' },
-    grid: {
-      color: ctx => ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a',
-      lineWidth: ctx => ctx.tick.value === 100 ? 2 : 1
-    }
-  }
-},
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
+        y: {
+          ticks: { color: '#888' },
+          grid: {
+            color: function(ctx) { return ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a'; },
+            lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
+          }
+        }
       }
-    });
-  } catch(e) {
-    loading.style.display = 'block';
-    loading.textContent = 'データの取得に失敗しました。時間をおいて再試行してください。';
-    canvas.style.display = 'none';
-  }
+    }
+  });
 }
 </script>
 </body>
