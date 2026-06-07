@@ -127,9 +127,8 @@ async function loadChart() {
 
   try {
     const tickers = [...new Set([...nums, den])];
-    const results = await Promise.all(tickers.map(t => fetchData(t)));
+    const results = await Promise.allSettled(tickers.map(t => fetchData(t))); tickers.forEach((t, i) => {   if (results[i].status === 'fulfilled') {     maps[t] = toMap(results[i].value);   } });
     const maps = {};
-    tickers.forEach((t, i) => { maps[t] = toMap(results[i]); });
 
     const denMap = maps[den];
     const datasets = [];
