@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>世界の物差し</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #0f0f1a; color: #eee; min-height: 100vh; padding: 20px; }
+  h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; color: #fff; }
+  .subtitle { text-align: center; font-size: 0.85rem; color: #888; margin-bottom: 24px; }
+  .selector { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 24px; }
+  .selector label { font-size: 0.8rem; color: #aaa; display: block; margin-bottom: 4px; }
+  select { background: #1e1e2e; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem; }
+  .chart-box { background: #1e1e2e; border-radius: 12px; padding: 20px; max-width: 720px; margin: 0 auto; }
+  .chart-title { text-align: center; font-size: 1rem; color: #ccc; margin-bottom: 16px; }
+  .note { text-align: center; font-size: 0.75rem; color: #555; margin-top: 16px; }
+  .loading { text-align: center; color: #888; padding: 40px; }
+</style>
+</head>
+<body>
+
+<h1>🌍 世界の物差し</h1>
+<p class="subtitle">価格ではなく、価値を見る。</p>
+
+<div class="selector">
+  <div>
+    <label>測る対象（分子）</label>
+    <select id="numerator">
+      <option value="SPY">S&P500（SPY）</option>
+      <option value="VT">オルカン（VT）</option>
+      <option value="GLD">金（GLD）</option>
+      <option value="BTC-USD">Bitcoin</option>
+      <option value="JPY=X">円（対ドル）</option>
+      <option value="QQQ">NASDAQ100（QQQ）</option>
+    </select>
+  </div>
+  <div>
+    <label>物差し（分母）</label>
+    <select id="denominator">
+      <option value="GLD">金（GLD）</option>
+      <option value="VT">オルカン（VT）</option>
+      <option value="SPY">S&P500（SPY）</option>
+      <option value="BTC-USD">Bitcoin</option>
+      <option value="JPY=X">円（対ドル）</option>
+    </select>
+  </div>
+  <div style="display:flex;align-items:flex-end;">
+    <button onclick="loadChart()" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:0.95rem;">表示する</button>
+  </div>
+</div>
+
+<div class="chart-box">
+  <div class="chart-title" id="chart-title">チャートを選択してください</div>
+  <div class="loading" id="loading" style="display:none;">データ取得中...</div>
+  <canvas id="myChart" style="display:none;"></canvas>
+  <p class="note">※ データはYahoo Finance経由。ETF価格での代用を含みます。</p>
+</div>
+
+<script>
+let myChart = null;
+
+async function fetchData(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1mo&range=10y`;
+  const res = await fetch(url);
+  const json = await res.json();
+  const timestamps = json.chart.result[0].timestamp;
+  const closes = json.chart.result[0].indicators.quote[0].close;
+  return { timestamps, closes };
+}
+
+async function loadChart() {
+  const num = document.getElementById('numerator').value;
+  const den = document.getElementById('denominator').value;
+  const loading = document.getElementById('loading');
+  const canvas = document.getElementById('myChart');
+  const title = document.getElementById('chart-title');
+
+  if (num === den) { alert('同じ資産は選べません'); return; }
+
+  loading.style.display = 'block';
+  canvas.style.display = 'none';
+  title.textContent = 'データ取得中...';
+
+  try {
+    const [a, b] = await Promise.all([fetchData(num), fetchData(den)]);
+
+    const mapA = {};
+    a.timestamps.forEach((t, i) => { if (a.closes[i]) mapA[t] = a.closes[i]; });
+    const mapB = {};
+    b.timestamps.forEach((t, i) => { if (b.closes[i]) mapB[t] = b.closes[i]; });
+
+    const common = Object.keys(mapA).filter(t => mapB[t]).sort();
+    const labels = common.map(t => new Date(t * 1000).toLocaleDateString('ja-JP', { year:'numeric', month:'short' }));
+    const ratios = common.map(t => mapA[t] / mapB[t]);
+    const base = ratios[0];
+    const normalized = ratios.map(r => ((r / base) * 100).toFixed(2));
+
+    title.textContent = `${num} ÷ ${den}（基準：最初の月を100）`;
+    loading.style.display = 'none';
+    canvas.style.display = 'block';
+
+    if (myChart) myChart.destroy();
+    myChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: `${num} / ${den}`,
+          data: normalized,
+          borderColor: '#818cf8',
+          backgroundColor: 'rgba(129,140,248,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', maxTicksLimit: 8 }, grid: { color: '#2a2a3a' } },
+          y: { ticks: { color: '#888' }, grid: { color: '#2a2a3a' } }
+        }
+      }
+    });
+  } catch(e) {
+    loading.textContent = 'データの取得に失敗しました。時間をおいて再試行してください。';
+  }
+}
+</script>
+</body>
+</html>
