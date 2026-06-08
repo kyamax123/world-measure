@@ -21,20 +21,19 @@
   button:hover { background: #4338ca; }
   .chart-box { background: #1e1e2e; border-radius: 12px; padding: 20px; max-width: 720px; margin: 0 auto; }
   .chart-title { text-align: center; font-size: 0.95rem; color: #ccc; margin-bottom: 16px; }
-  .note { text-align: center; font-size: 0.75rem; color: #555; margin-top: 16px; }
-.note-details { max-width: 720px; margin: 16px auto 0; }
-.note-details summary { text-align: center; font-size: 0.78rem; color: #555; cursor: pointer; padding: 4px; }
-.note-details summary:hover { color: #888; }
-.note-details[open] summary { color: #aaa; margin-bottom: 12px; }
-.note-body { background: #1a1a2e; border-radius: 8px; padding: 16px 20px; font-size: 0.78rem; color: #666; }
-.note-body p { margin-bottom: 8px; }
-.note-body table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-.note-body td { padding: 4px 8px; border-bottom: 1px solid #2a2a3a; color: #666; }
-.note-body td:first-child { color: #888; width: 40%; }
- .loading { text-align: center; color: #888; padding: 20px; }
+  .loading { text-align: center; color: #888; padding: 20px; }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #ccc; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .note-details { max-width: 720px; margin: 16px auto 0; }
+  .note-details summary { text-align: center; font-size: 0.78rem; color: #555; cursor: pointer; padding: 4px; }
+  .note-details summary:hover { color: #888; }
+  .note-details[open] summary { color: #aaa; margin-bottom: 12px; }
+  .note-body { background: #1a1a2e; border-radius: 8px; padding: 16px 20px; font-size: 0.78rem; color: #666; }
+  .note-body p { margin-bottom: 8px; }
+  .note-body table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .note-body td { padding: 4px 8px; border-bottom: 1px solid #2a2a3a; color: #666; }
+  .note-body td:first-child { color: #888; width: 40%; }
 </style>
 </head>
 <body>
@@ -81,6 +80,8 @@
   <div class="legend" id="legend"></div>
   <div class="loading" id="loading" style="display:none;"></div>
   <canvas id="myChart" style="display:none;"></canvas>
+</div>
+
 <details class="note-details">
   <summary>※ データについて</summary>
   <div class="note-body">
@@ -103,54 +104,43 @@
     <p>※ 投資助言ではありません。特定の資産を推奨するものでもありません。</p>
   </div>
 </details>
-</div>
 
 <script>
-const COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a78bfa','#4ade80','#f87171','#38bdf8','#e879f9','#fbbf24'];
+var COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a78bfa','#4ade80','#f87171','#38bdf8','#e879f9','#fbbf24'];
+var LABELS = {'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin','JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀','USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債'};
+var myChart = null;
 
-const LABELS = {
-  'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin',
-  'JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀',
-  'USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債'
-};
-
-let myChart = null;
-
-async function fetchData(ticker) {
-  const res = await fetch('/api/proxy?ticker=' + encodeURIComponent(ticker));
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
-  if (!json.chart || !json.chart.result || !json.chart.result[0]) throw new Error('no result');
-  const result = json.chart.result[0];
-  return {
-    timestamps: result.timestamp,
-    closes: result.indicators.quote[0].close
-  };
+function fetchData(ticker) {
+  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker))
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      var result = json.chart.result[0];
+      return { timestamps: result.timestamp, closes: result.indicators.quote[0].close };
+    });
 }
 
 function toMap(data) {
-  const m = {};
+  var m = {};
   data.timestamps.forEach(function(t, i) {
     if (data.closes[i] != null) {
-      const d = new Date(t * 1000);
-      const key = d.getFullYear() + '-' + d.getMonth();
+      var d = new Date(t * 1000);
+      var key = d.getFullYear() + '-' + d.getMonth();
       m[key] = data.closes[i];
     }
   });
   return m;
 }
 
-async function loadChart() {
-  const den = document.getElementById('denominator').value;
-  const checked = document.querySelectorAll('#numerators input:checked');
-  const nums = Array.from(checked).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
-
+function loadChart() {
+  var den = document.getElementById('denominator').value;
+  var checked = document.querySelectorAll('#numerators input:checked');
+  var nums = Array.from(checked).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
   if (nums.length === 0) { alert('物差しと異なる対象を1つ以上選んでください'); return; }
 
-  const loading = document.getElementById('loading');
-  const canvas = document.getElementById('myChart');
-  const title = document.getElementById('chart-title');
-  const legendEl = document.getElementById('legend');
+  var loading = document.getElementById('loading');
+  var canvas = document.getElementById('myChart');
+  var title = document.getElementById('chart-title');
+  var legendEl = document.getElementById('legend');
 
   loading.style.display = 'block';
   loading.textContent = 'データ取得中...';
@@ -158,100 +148,78 @@ async function loadChart() {
   legendEl.innerHTML = '';
   title.textContent = 'データ取得中...';
 
-  const tickers = Array.from(new Set(nums.concat([den])));
-  const maps = {};
+  var tickers = Array.from(new Set(nums.concat([den])));
+  var maps = {};
 
-  await Promise.all(tickers.map(async function(t) {
-    try {
-      const data = await fetchData(t);
+  Promise.all(tickers.map(function(t) {
+    return fetchData(t).then(function(data) {
       maps[t] = toMap(data);
-    } catch(e) {
-      console.warn('failed:', t, e.message);
+    }).catch(function(e) {
+      console.warn('failed:', t, e);
+    });
+  })).then(function() {
+    if (!maps[den]) {
+      loading.textContent = '物差しのデータ取得に失敗しました。';
+      return;
     }
-  }));
+    var denMap = maps[den];
+    var datasets = [];
 
-  if (!maps[den]) {
-    loading.textContent = '物差しのデータ取得に失敗しました。';
-    return;
-  }
-
-  const denMap = maps[den];
-  const datasets = [];
-
-  nums.forEach(function(num, idx) {
-    if (!maps[num]) return;
-    const numMap = maps[num];
-    const common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort();
-   console.log(num, 'common points:', common.length, 'numMap keys:', Object.keys(numMap).length, 'denMap keys:', Object.keys(denMap).length);
+    nums.forEach(function(num, idx) {
+      if (!maps[num]) return;
+      var numMap = maps[num];
+      var common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort();
       if (common.length === 0) return;
-
-      const labels = common.map(function(t) {
-        const parts = t.split('-');
-        const d = new Date(parseInt(parts[0]), parseInt(parts[1]), 1);
+      var labels = common.map(function(t) {
+        var parts = t.split('-');
+        var d = new Date(parseInt(parts[0]), parseInt(parts[1]), 1);
         return d.toLocaleDateString('ja-JP', { year:'numeric', month:'short' });
       });
-
-      const ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
-      const base = ratios[0];
-      const normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
-
+      var ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
+      var base = ratios[0];
+      var normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
       datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
     });
 
-  if (datasets.length === 0) {
-    loading.textContent = '表示できるデータがありませんでした。';
-    return;
-  }
+    if (datasets.length === 0) { loading.textContent = '表示できるデータがありませんでした。'; return; }
 
-  const allLabels = datasets.reduce(function(a, d) { return d.labels.length > a.length ? d.labels : a; }, []);
+    var allLabels = datasets.reduce(function(a, d) { return d.labels.length > a.length ? d.labels : a; }, []);
+    title.textContent = '物差し：' + (LABELS[den] || den);
+    loading.style.display = 'none';
+    canvas.style.display = 'block';
 
-  title.textContent = '物差し：' + (LABELS[den] || den);
-  loading.style.display = 'none';
-  canvas.style.display = 'block';
+    legendEl.innerHTML = datasets.map(function(d) {
+      return '<div class="legend-item"><div class="legend-dot" style="background:' + d.color + '"></div>' + (LABELS[d.ticker] || d.ticker) + '</div>';
+    }).join('');
 
-  legendEl.innerHTML = datasets.map(function(d) {
-    return '<div class="legend-item"><div class="legend-dot" style="background:' + d.color + '"></div>' + (LABELS[d.ticker] || d.ticker) + '</div>';
-  }).join('');
-
-  if (myChart) myChart.destroy();
-  myChart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels: allLabels,
-      datasets: datasets.map(function(d) {
-        return {
-          label: LABELS[d.ticker] || d.ticker,
-          data: d.data,
-          borderColor: d.color,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3
-        };
-      })
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) { return ctx.dataset.label + '：' + ctx.parsed.y; }
-          }
-        }
+    if (myChart) myChart.destroy();
+    myChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: allLabels,
+        datasets: datasets.map(function(d) {
+          return { label: LABELS[d.ticker] || d.ticker, data: d.data, borderColor: d.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 };
+        })
       },
-      scales: {
-        x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
-        y: {
-          ticks: { color: '#888' },
-          grid: {
-            color: function(ctx) { return ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a'; },
-            lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + '：' + ctx.parsed.y; } } }
+        },
+        scales: {
+          x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
+          y: {
+            ticks: { color: '#888' },
+            grid: {
+              color: function(ctx) { return ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a'; },
+              lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
+            }
           }
         }
       }
-    }
+    });
   });
 }
 </script>
