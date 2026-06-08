@@ -210,13 +210,14 @@ function loadChart() {
         },
         scales: {
           x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
-          y: {
-            ticks: { color: '#888' },
-            grid: {
-              color: function(ctx) { return ctx.tick.value === 100 ? '#818cf8' : '#2a2a3a'; },
-              lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
-            }
-          }
+y: {
+  type: 'logarithmic',
+  ticks: {
+    color: '#888',
+    callback: function(val) { return val; }
+  },
+  grid: { color: '#2a2a3a' }
+},
         }
       }
     });
