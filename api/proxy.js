@@ -24,7 +24,8 @@ export default async function handler(req, res) {
       return res.status(200).json(json);
     }
 
-    const url = 'https://query2.finance.yahoo.com/v8/finance/chart/' + t + '?interval=1mo&range=max&corsDomain=finance.yahoo.com';
+const range = req.query.range || 'max';
+const url = 'https://query2.finance.yahoo.com/v8/finance/chart/' + t + '?interval=1mo&range=' + range + '&corsDomain=finance.yahoo.com';
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
     const json = await r.json();
     if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data' });
