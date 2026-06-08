@@ -197,7 +197,6 @@ async function loadChart() {
 
       datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
     });
-  });
 
   if (datasets.length === 0) {
     loading.textContent = '表示できるデータがありませんでした。';
