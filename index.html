@@ -178,6 +178,7 @@ async function loadChart() {
     if (!maps[num]) return;
     const numMap = maps[num];
     const common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort(function(a,b){return a-b;});
+   console.log(num, 'common points:', common.length, 'numMap keys:', Object.keys(numMap).length, 'denMap keys:', Object.keys(denMap).length);
     if (common.length === 0) return;
 
     const ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
