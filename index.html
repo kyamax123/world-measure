@@ -131,7 +131,11 @@ async function fetchData(ticker) {
 function toMap(data) {
   const m = {};
   data.timestamps.forEach(function(t, i) {
-    if (data.closes[i] != null) m[t] = data.closes[i];
+    if (data.closes[i] != null) {
+      const d = new Date(t * 1000);
+      const key = d.getFullYear() + '-' + d.getMonth();
+      m[key] = data.closes[i];
+    }
   });
   return m;
 }
@@ -177,18 +181,22 @@ async function loadChart() {
   nums.forEach(function(num, idx) {
     if (!maps[num]) return;
     const numMap = maps[num];
-    const common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort(function(a,b){return a-b;});
+    const common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort();
    console.log(num, 'common points:', common.length, 'numMap keys:', Object.keys(numMap).length, 'denMap keys:', Object.keys(denMap).length);
-    if (common.length === 0) return;
+      if (common.length === 0) return;
 
-    const ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
-    const base = ratios[0];
-    const normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
-    const labels = common.map(function(t) {
-      return new Date(t * 1000).toLocaleDateString('ja-JP', { year:'numeric', month:'short' });
+      const labels = common.map(function(t) {
+        const parts = t.split('-');
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]), 1);
+        return d.toLocaleDateString('ja-JP', { year:'numeric', month:'short' });
+      });
+
+      const ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
+      const base = ratios[0];
+      const normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
+
+      datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
     });
-
-    datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
   });
 
   if (datasets.length === 0) {
