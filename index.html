@@ -239,10 +239,15 @@ function loadChart() {
           x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
 y: {
   type: 'logarithmic',
-  ticks: {
-    color: '#888',
-    callback: function(val) { return val; }
-  },
+ticks: {
+  color: '#888',
+  maxTicksLimit: 8,
+  callback: function(val) {
+    if (val === 100) return '100';
+    if (val >= 1000) return (val/1000).toFixed(0) + 'k';
+    return Number.isInteger(Math.log10(val)) ? val : '';
+  }
+},
   grid: {
     color: function(ctx) { return ctx.tick.value === 100 ? 'rgba(255,255,255,0.4)' : '#2a2a3a'; },
     lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
