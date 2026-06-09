@@ -46,13 +46,17 @@ button:hover { background: #0d6460; }
 
 <div class="panel">
   <div class="panel-title">📐 物差し（分母）を選ぶ</div>
-  <select id="denominator">
-    <option value="GLD">金（GLD）</option>
-    <option value="VT">オルカン（VT）</option>
-    <option value="SPY">S&P500（SPY）</option>
-    <option value="BTC-USD">Bitcoin</option>
-    <option value="SLV">銀（SLV）</option>
-  </select>
+<select id="denominator">
+  <option value="GLD">金（GLD）</option>
+  <option value="VT">オルカン（VT）</option>
+  <option value="SPY">S&P500（SPY）</option>
+  <option value="BTC-USD">Bitcoin</option>
+  <option value="SLV">銀（SLV）</option>
+  <option value="UUP">ドル（UUP）</option>
+  <option value="JPY">円</option>
+  <option value="TLT">米長期国債（TLT）</option>
+  <option value="QQQ">NASDAQ100（QQQ）</option>
+</select>
   <span style="color:#555;font-size:0.85rem;margin-left:8px;">で測る</span>
 </div>
 
@@ -71,6 +75,7 @@ button:hover { background: #0d6460; }
     <label><input type="checkbox" value="IYR"> 米不動産</label>
     <label><input type="checkbox" value="FXE"> ユーロ</label>
     <label><input type="checkbox" value="TLT"> 米長期国債</label>
+   <label><input type="checkbox" value="UUP"> ドル</label>
   </div>
 </div>
 
@@ -111,6 +116,7 @@ button:hover { background: #0d6460; }
       <tr><td>米不動産</td><td>IYR（ETF）</td></tr>
       <tr><td>ユーロ</td><td>FXE（ETF）</td></tr>
       <tr><td>米長期国債</td><td>TLT（ETF）</td></tr>
+     <tr><td>ドル</td><td>UUP（ETF）</td></tr>
     </table>
     <p>※ 投資助言ではありません。特定の資産を推奨するものでもありません。</p>
   </div>
@@ -118,9 +124,8 @@ button:hover { background: #0d6460; }
 
 <script>
 var COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a78bfa','#4ade80','#f87171','#38bdf8','#e879f9','#fbbf24'];
-var LABELS = {'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin','JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀','USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債'};
+var LABELS = {'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin','JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀','USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債','UUP':'ドル'};
 var myChart = null;
-var selectedRange = 'max';
 var selectedRange = 'max';
 
 function setRange(btn, range) {
@@ -236,7 +241,10 @@ y: {
     color: '#888',
     callback: function(val) { return val; }
   },
-  grid: { color: '#2a2a3a' }
+  grid: {
+    color: function(ctx) { return ctx.tick.value === 100 ? 'rgba(255,255,255,0.4)' : '#2a2a3a'; },
+    lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
+  }
 },
         }
       }
