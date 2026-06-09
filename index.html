@@ -93,6 +93,7 @@ button:hover { background: #0d6460; }
 
 <div class="chart-box">
   <div class="chart-title" id="chart-title">物差しと対象を選んで「表示する」を押してください</div>
+ <div id="scale-note" style="text-align:center;font-size:0.75rem;color:#555;margin-bottom:8px;display:none;">※ 縦軸は対数スケールです。変化率を比較するのに適しています。</div>
   <div class="legend" id="legend"></div>
   <div class="loading" id="loading" style="display:none;"></div>
   <canvas id="myChart" style="display:none;"></canvas>
@@ -212,6 +213,7 @@ function loadChart() {
     title.textContent = '物差し：' + (LABELS[den] || den);
     loading.style.display = 'none';
     canvas.style.display = 'block';
+   document.getElementById('scale-note').style.display = 'block';
 
     legendEl.innerHTML = datasets.map(function(d) {
       return '<div class="legend-item"><div class="legend-dot" style="background:' + d.color + '"></div>' + (LABELS[d.ticker] || d.ticker) + '</div>';
