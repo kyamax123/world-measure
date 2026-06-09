@@ -118,13 +118,17 @@ var COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a78b
 var LABELS = {'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin','JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀','USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債'};
 var myChart = null;
 var selectedRange = 'max';
+var selectedRange = 'max';
+
 function setRange(btn, range) {
-return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=' + selectedRange)
+  selectedRange = range;
   document.querySelectorAll('.range-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
+  loadChart();
 }
+
 function fetchData(ticker) {
-  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker))
+  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=' + selectedRange)
     .then(function(r) { return r.json(); })
     .then(function(json) {
       var result = json.chart.result[0];
