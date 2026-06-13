@@ -211,9 +211,11 @@ function setPeriod(btn, period) {
   loadChart();
 }
 
+// CDNキャッシュバイパス用：1時間ごとに変わるキー（エラーキャッシュの回避）
+var CACHE_KEY = Math.floor(Date.now() / 3600000);
+
 function fetchData(ticker) {
-  // GLD・JPYはFREDへルーティング（proxy.js側で切り替え）、他はYahoo Finance
-  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=max')
+  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=max&_v=' + CACHE_KEY)
     .then(function(r) { return r.json(); })
     .then(function(json) {
       var result = json.chart.result[0];
