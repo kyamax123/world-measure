@@ -10,17 +10,21 @@ export default async function handler(req, res) {
   // FREDで取得すべき系列の定義
   // invert: true の場合は逆数を返す（ドル円→円の価値に変換）
   const FRED_SERIES = {
-    // LBMA金価格（AM fix）: https://fred.stlouisfed.org/series/GOLDAMGBD228NLBM
-    // 注: LBMAシリーズはアクセス制限の可能性あり。要確認。
-    'GLD': { series: 'GOLDAMGBD228NLBM', invert: false },
-    'JPY': { series: 'DEXJPUS',          invert: true  },
+    'JPY': { series: 'DEXJPUS', invert: true },
+    // 金: FREDのLBMAシリーズIDが未確定のためYahoo GC=Fで代替（下のYAHOO_REMAPを参照）
+  };
+
+  // Yahoo Financeのシンボルを差し替える（GLD ETFの上場前まで遡るため）
+  const YAHOO_REMAP = {
+    'GLD': 'GC=F',  // COMEX金先物（継続）: 1974年〜
   };
 
   try {
     if (FRED_SERIES[t]) {
       return await handleFred(req, res, t, FRED_SERIES[t]);
     } else {
-      return await handleYahoo(req, res, t, range || 'max');
+      const yahooSymbol = YAHOO_REMAP[t] || t;
+      return await handleYahoo(req, res, yahooSymbol, range || 'max');
     }
   } catch (e) {
     return res.status(500).json({ error: e.message });
