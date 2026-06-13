@@ -158,6 +158,23 @@
   </div>
 </div>
 
+<details class="note-details snapshot-details" id="snapshot-section" style="display:none;">
+  <summary>📅 月次定点観測</summary>
+  <div class="note-body">
+    <p style="margin-bottom:12px;color:#888;">毎月の「今月の一行」を手動で記録した定点観測ログです。</p>
+    <table id="snapshot-table">
+      <tr>
+        <td style="color:#666;font-size:0.74rem;">月</td>
+        <td style="color:#666;font-size:0.74rem;">物差し</td>
+        <td style="color:#666;font-size:0.74rem;">対象</td>
+        <td style="color:#666;font-size:0.74rem;">期間</td>
+        <td style="color:#666;font-size:0.74rem;">変化</td>
+        <td style="color:#666;font-size:0.74rem;">メモ</td>
+      </tr>
+    </table>
+  </div>
+</details>
+
 <details class="note-details">
   <summary>※ データについて</summary>
   <div class="note-body">
@@ -490,9 +507,37 @@ function shareToX() {
   window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
 }
 
+// 月次定点観測ログの読み込み
+function loadSnapshots() {
+  fetch('/snapshots.json?_v=' + CACHE_KEY)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!Array.isArray(data) || data.length === 0) return;
+      var section = document.getElementById('snapshot-section');
+      var table = document.getElementById('snapshot-table');
+      var PERIOD_LABELS = { nixon: 'ニクソン以降', lost30: '失われた30年', nisa: '新NISA以降', all: '全期間' };
+      data.forEach(function(row) {
+        var tr = document.createElement('tr');
+        var up = row.value && row.value.charAt(0) === '▲';
+        var color = up ? '#34d399' : '#f87171';
+        tr.innerHTML =
+          '<td>' + (row.month || '') + '</td>' +
+          '<td>' + (LABELS[row.den] || row.den || '') + '</td>' +
+          '<td>' + (LABELS[row.asset] || row.asset || '') + '</td>' +
+          '<td>' + (PERIOD_LABELS[row.period] || row.period || '') + '</td>' +
+          '<td style="color:' + color + ';font-weight:600;">' + (row.value || '') + '</td>' +
+          '<td style="color:#555;">' + (row.memo || '') + '</td>';
+        table.appendChild(tr);
+      });
+      section.style.display = '';
+    })
+    .catch(function() { /* スナップショットが未作成の場合は非表示のまま */ });
+}
+
 // ページロード時にシンプルビューを自動表示
 document.addEventListener('DOMContentLoaded', function() {
   loadChart({ den: 'GLD', nums: ['JPY', 'SPY'], period: 'all' });
+  loadSnapshots();
 });
 </script>
 </body>
