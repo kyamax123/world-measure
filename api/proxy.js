@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=3600');
+  // Cache-Control は成功時のみ設定する（エラーレスポンスをCDNにキャッシュさせない）
 
   const { ticker, range } = req.query;
   if (!ticker) return res.status(400).json({ error: 'ticker is required' });
@@ -10,7 +10,9 @@ export default async function handler(req, res) {
   // FREDで取得すべき系列の定義
   // invert: true の場合は逆数を返す（ドル円→円の価値に変換）
   const FRED_SERIES = {
-    'GLD': { series: 'GOLDPMGBD228NLBM', invert: false },  // London PM fix（AM fixより流通量多）
+    // LBMA金価格（AM fix）: https://fred.stlouisfed.org/series/GOLDAMGBD228NLBM
+    // 注: LBMAシリーズはアクセス制限の可能性あり。要確認。
+    'GLD': { series: 'GOLDAMGBD228NLBM', invert: false },
     'JPY': { series: 'DEXJPUS',          invert: true  },
   };
 
@@ -63,7 +65,8 @@ async function handleFred(req, res, ticker, { series, invert }) {
     closes.push(invert ? 1 / v : v);
   }
 
-  // Yahoo Finance chart APIと同じ形式で返す
+  // 成功時のみキャッシュ（1時間）
+  res.setHeader('Cache-Control', 's-maxage=3600');
   return res.status(200).json({
     chart: {
       result: [{
@@ -90,5 +93,6 @@ async function handleYahoo(req, res, ticker, range) {
   const json = await response.json();
   if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data' });
 
+  res.setHeader('Cache-Control', 's-maxage=3600');
   return res.status(200).json(json);
 }
