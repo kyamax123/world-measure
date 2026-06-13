@@ -36,8 +36,8 @@ async function handleFred(req, res, ticker, { series, invert }) {
     + '&api_key=' + apiKey
     + '&file_type=json'
     + '&frequency=m'
-    + '&aggregation_method=eop'   // 月末値（Yahoo Financeの月次終値に相当）
     + '&observation_start=1960-01-01';
+    // aggregation_method は省略（系列によってはeop非対応で400になるため）
 
   const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
   if (!response.ok) {
