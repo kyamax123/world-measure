@@ -27,8 +27,9 @@
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
   /* ② 詳細パネルのトグルボタン */
-  #detail-toggle { display: block; margin: 16px auto 0; background: transparent; color: #555; border: 1px solid #2a2a3e; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 0.85rem; }
-  #detail-toggle:hover { color: #aaa; border-color: #444; background: transparent; }
+  #detail-toggle { display: block; margin: 24px auto 0; background: transparent; color: #818cf8; border: 1.5px solid #4f46e5; border-radius: 10px; padding: 12px 32px; cursor: pointer; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.04em; min-width: 220px; transition: background 0.15s, color 0.15s; }
+  #detail-toggle:hover { background: #4f46e530; color: #a5b4fc; border-color: #818cf8; }
+  @media (max-width: 480px) { #detail-toggle { min-width: 80%; } }
 
   /* ② 詳細パネル */
   #detail-panel { display: none; max-width: 960px; margin: 0 auto; }
@@ -167,7 +168,7 @@ function toggleDetail() {
   var panel = document.getElementById('detail-panel');
   var btn = document.getElementById('detail-toggle');
   var isOpen = panel.classList.toggle('open');
-  btn.textContent = isOpen ? 'シンプルに戻す ▲' : 'もっと詳しく測る ▼';
+  btn.textContent = isOpen ? '✕ シンプルに戻す' : '＋ もっと詳しく測る';
 }
 
 // ① ヘッドライン更新
