@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>世界の物差し</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #0f0f1a; color: #eee; min-height: 100vh; padding: 20px; }
+  h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; color: #fff; }
+  .subtitle { text-align: center; font-size: 0.85rem; color: #888; margin-bottom: 20px; }
+
+  /* ① 今月の一行 */
+  #headline { display: none; text-align: center; max-width: 960px; margin: 0 auto 20px; background: #1e1e2e; border-radius: 16px; padding: 20px 16px 18px; }
+  .headline-label { font-size: 0.9rem; color: #888; margin-bottom: 6px; letter-spacing: 0.03em; }
+  .headline-value { font-size: 3.2rem; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+  .headline-sub { font-size: 0.78rem; color: #555; }
+  @media (max-width: 480px) { .headline-value { font-size: 2.6rem; } }
+
+  /* チャートエリア */
+  .chart-box { background: #1e1e2e; border-radius: 12px; padding: 20px; max-width: 960px; margin: 0 auto; }
+  .chart-title { text-align: center; font-size: 0.95rem; color: #ccc; margin-bottom: 16px; }
+  .loading { text-align: center; color: #888; padding: 20px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #ccc; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ② 詳細パネルのトグルボタン */
+  #detail-toggle { display: block; margin: 16px auto 0; background: transparent; color: #555; border: 1px solid #2a2a3e; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 0.85rem; }
+  #detail-toggle:hover { color: #aaa; border-color: #444; background: transparent; }
+
+  /* ② 詳細パネル */
+  #detail-panel { display: none; max-width: 960px; margin: 0 auto; }
+  #detail-panel.open { display: block; }
+  .panel { background: #1e1e2e; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; margin-top: 16px; }
+  .panel-title { font-size: 0.8rem; color: #aaa; margin-bottom: 10px; }
+  .checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .checkboxes label { display: flex; align-items: center; gap: 6px; background: #2a2a3e; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.88rem; border: 1px solid #333; }
+  .checkboxes label:hover { border-color: #818cf8; }
+  .checkboxes input[type=checkbox] { accent-color: #818cf8; width: 15px; height: 15px; }
+  select { background: #2a2a3e; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 8px 12px; font-size: 0.95rem; }
+  button { background: #0f766e; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; cursor: pointer; font-size: 0.95rem; }
+  button:hover { background: #0d6460; }
+  .range-btn { background: transparent !important; color: #888; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 0.82rem; line-height: 1.3; text-align: center; }
+  .range-btn.active { background: #4f46e5 !important; color: #fff; }
+  .range-btn:hover { background: #2a2a3e !important; color: #eee; }
+  .range-btn.active:hover { background: #4338ca !important; }
+  .range-year { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 2px; }
+
+  /* 注記 */
+  .note-details { max-width: 960px; margin: 16px auto 0; }
+  .note-details summary { text-align: center; font-size: 0.78rem; color: #555; cursor: pointer; padding: 4px; }
+  .note-details summary:hover { color: #888; }
+  .note-details[open] summary { color: #aaa; margin-bottom: 12px; }
+  .note-body { background: #1a1a2e; border-radius: 8px; padding: 16px 20px; font-size: 0.78rem; color: #666; }
+  .note-body p { margin-bottom: 8px; }
+  .note-body table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .note-body td { padding: 4px 8px; border-bottom: 1px solid #2a2a3a; color: #666; }
+  .note-body td:first-child { color: #888; width: 40%; }
+</style>
+</head>
+<body>
+
+<h1>🌍 世界の物差し</h1>
+<p class="subtitle">価格ではなく、価値を見る。</p>
+
+<div id="headline"></div>
+
+<div class="chart-box">
+  <div class="chart-title" id="chart-title">読み込み中...</div>
+  <div id="scale-note" style="text-align:center;font-size:0.75rem;color:#555;margin-bottom:8px;display:none;">※ 縦軸は対数スケールです。変化率を比較するのに適しています。</div>
+  <div class="legend" id="legend"></div>
+  <div class="loading" id="loading"></div>
+  <canvas id="myChart" style="display:none;"></canvas>
+</div>
+
+<button id="detail-toggle" onclick="toggleDetail()">もっと詳しく測る ▼</button>
+
+<div id="detail-panel">
+  <div class="panel">
+    <div class="panel-title">📐 物差し（分母）を選ぶ</div>
+    <select id="denominator">
+      <option value="GLD">金（GLD）</option>
+      <option value="VT">オルカン（VT）</option>
+      <option value="SPY">S&P500（SPY）</option>
+      <option value="BTC-USD">Bitcoin</option>
+      <option value="SLV">銀（SLV）</option>
+      <option value="UUP">ドル（UUP）</option>
+      <option value="JPY">円</option>
+      <option value="TLT">米長期国債（TLT）</option>
+      <option value="QQQ">NASDAQ100（QQQ）</option>
+    </select>
+    <span style="color:#555;font-size:0.85rem;margin-left:8px;">で測る</span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🔭 測る対象（複数選択可）</div>
+    <div class="checkboxes" id="numerators">
+      <label><input type="checkbox" value="SPY" checked> S&P500</label>
+      <label><input type="checkbox" value="VT"> オルカン</label>
+      <label><input type="checkbox" value="GLD"> 金</label>
+      <label><input type="checkbox" value="BTC-USD"> Bitcoin</label>
+      <label><input type="checkbox" value="JPY" checked> 円</label>
+      <label><input type="checkbox" value="QQQ"> NASDAQ100</label>
+      <label><input type="checkbox" value="EWJ"> TOPIX連動</label>
+      <label><input type="checkbox" value="SLV"> 銀</label>
+      <label><input type="checkbox" value="USO"> 原油</label>
+      <label><input type="checkbox" value="IYR"> 米不動産</label>
+      <label><input type="checkbox" value="FXE"> ユーロ</label>
+      <label><input type="checkbox" value="TLT"> 米長期国債</label>
+      <label><input type="checkbox" value="UUP"> ドル</label>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:12px;">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:#1e1e2e;border-radius:10px;padding:8px;max-width:560px;margin:0 auto;">
+      <button class="range-btn" onclick="setPeriod(this,'nixon')">ニクソンショック以降<span class="range-year">1971〜</span></button>
+      <button class="range-btn" onclick="setPeriod(this,'lost30')">失われた30年<span class="range-year">1990〜</span></button>
+      <button class="range-btn" onclick="setPeriod(this,'nisa')">新NISA開始以降<span class="range-year">2024〜</span></button>
+      <button class="range-btn active" onclick="setPeriod(this,'all')">全期間</button>
+    </div>
+  </div>
+  <div style="text-align:center;margin-bottom:20px;">
+    <button onclick="loadChart()">表示する</button>
+  </div>
+</div>
+
+<details class="note-details">
+  <summary>※ データについて</summary>
+  <div class="note-body">
+    <p>株式・ETF・為替・Bitcoin：Yahoo Finance（月次終値）</p>
+    <p>各資産はETFまたは連動指数で代用しています。</p>
+    <table>
+      <tr><td>S&P500</td><td>SPY（ETF）</td></tr>
+      <tr><td>オルカン</td><td>VT（ETF）</td></tr>
+      <tr><td>金</td><td>GLD（ETF）</td></tr>
+      <tr><td>Bitcoin</td><td>BTC-USD</td></tr>
+      <tr><td>円</td><td>JPY=X（USD/JPY）</td></tr>
+      <tr><td>NASDAQ100</td><td>QQQ（ETF）</td></tr>
+      <tr><td>TOPIX連動</td><td>EWJ（ETF）</td></tr>
+      <tr><td>銀</td><td>SLV（ETF）</td></tr>
+      <tr><td>原油</td><td>USO（ETF）</td></tr>
+      <tr><td>米不動産</td><td>IYR（ETF）</td></tr>
+      <tr><td>ユーロ</td><td>FXE（ETF）</td></tr>
+      <tr><td>米長期国債</td><td>TLT（ETF）</td></tr>
+      <tr><td>ドル</td><td>UUP（ETF）</td></tr>
+    </table>
+    <p>※ 投資助言ではありません。特定の資産を推奨するものでもありません。</p>
+  </div>
+</details>
+
+<script>
+var COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a78bfa','#4ade80','#f87171','#38bdf8','#e879f9','#fbbf24'];
+var LABELS = {'SPY':'S&P500','VT':'オルカン','GLD':'金','BTC-USD':'Bitcoin','JPY':'円','QQQ':'NASDAQ100','EWJ':'TOPIX連動','SLV':'銀','USO':'原油','IYR':'米不動産','FXE':'ユーロ','TLT':'米長期国債','UUP':'ドル'};
+var PERIODS = {
+  nixon:  { label: 'ニクソンショック以降（1971〜）', startYear: 1971 },
+  lost30: { label: '失われた30年（1990〜）',         startYear: 1990 },
+  nisa:   { label: '新NISA開始以降（2024〜）',       startYear: 2024 },
+  all:    { label: '全期間',                         startYear: 0    }
+};
+var myChart = null;
+var selectedPeriod = 'all';
+
+// ② 詳細パネルの開閉
+function toggleDetail() {
+  var panel = document.getElementById('detail-panel');
+  var btn = document.getElementById('detail-toggle');
+  var isOpen = panel.classList.toggle('open');
+  btn.textContent = isOpen ? 'シンプルに戻す ▲' : 'もっと詳しく測る ▼';
+}
+
+// ① ヘッドライン更新
+function updateHeadline(datasets, den, range) {
+  var el = document.getElementById('headline');
+  if (!datasets || datasets.length === 0) { el.style.display = 'none'; return; }
+
+  var star = datasets.reduce(function(best, d) {
+    var end = d.data[d.data.length - 1];
+    return Math.abs(end - 100) > Math.abs(best.end - 100) ? { d: d, end: end } : best;
+  }, { d: datasets[0], end: datasets[0].data[datasets[0].data.length - 1] });
+
+  var end = star.end;
+  var times = end / 100;
+  var pct = (times - 1) * 100;
+  var up = pct >= 0;
+  var color = up ? '#34d399' : '#f87171';
+  var arrow = up ? '▲' : '▼';
+  var valueStr = (times >= 3 || times <= 0.334)
+    ? times.toFixed(2) + '倍'
+    : Math.abs(pct).toFixed(0) + '%';
+
+  var denLabel = LABELS[den] || den;
+  var assetLabel = LABELS[star.d.ticker] || star.d.ticker;
+  var rangeLabel = (PERIODS[range] || PERIODS.all).label + 'で';
+  var startYear = star.d.labels[0] || '';
+  var endYear = star.d.labels[star.d.labels.length - 1] || '';
+  var periodStr = startYear && endYear ? '（' + startYear + ' → ' + endYear + '）' : '';
+
+  el.innerHTML =
+    '<div class="headline-label">' + denLabel + '建てで ' + assetLabel + ' は' + rangeLabel + '</div>' +
+    '<div class="headline-value" style="color:' + color + '">' + arrow + valueStr + '</div>' +
+    '<div class="headline-sub">' + periodStr + '</div>';
+  el.style.display = 'block';
+}
+
+function setPeriod(btn, period) {
+  selectedPeriod = period;
+  document.querySelectorAll('.range-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadChart();
+}
+
+function fetchData(ticker) {
+  return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=max')
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      var result = json.chart.result[0];
+      return { timestamps: result.timestamp, closes: result.indicators.quote[0].close };
+    });
+}
+
+function toMap(data, startYear) {
+  var m = {};
+  data.timestamps.forEach(function(t, i) {
+    if (data.closes[i] != null) {
+      var d = new Date(t * 1000);
+      if (!startYear || d.getFullYear() >= startYear) {
+        var key = d.getFullYear() + '-' + d.getMonth();
+        m[key] = data.closes[i];
+      }
+    }
+  });
+  return m;
+}
+
+// ④ 線の右端に資産名を直接描画するプラグイン
+var endLabelPlugin = {
+  id: 'endLabel',
+  afterDatasetsDraw: function(chart) {
+    var ctx = chart.ctx;
+    var MIN_GAP = 15;
+
+    var items = [];
+    chart.data.datasets.forEach(function(ds, i) {
+      var meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+      var lastPt = null;
+      for (var j = meta.data.length - 1; j >= 0; j--) {
+        if (ds.data[j] != null) { lastPt = meta.data[j]; break; }
+      }
+      if (!lastPt) return;
+      items.push({ x: lastPt.x, y: lastPt.y, label: ds.label, color: ds.borderColor });
+    });
+
+    // y順にソートして重なりを解消（上から順に押し下げ）
+    items.sort(function(a, b) { return a.y - b.y; });
+    for (var i = 1; i < items.length; i++) {
+      if (items[i].y < items[i - 1].y + MIN_GAP) {
+        items[i].y = items[i - 1].y + MIN_GAP;
+      }
+    }
+
+    ctx.save();
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textBaseline = 'middle';
+    items.forEach(function(item) {
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.label, item.x + 8, item.y);
+    });
+    ctx.restore();
+  }
+};
+
+// opts: { den, nums, period } — 省略時はパネルの選択値を使う
+function loadChart(opts) {
+  var den    = (opts && opts.den)    || document.getElementById('denominator').value;
+  var nums   = (opts && opts.nums)   || Array.from(document.querySelectorAll('#numerators input:checked')).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
+  var period = (opts && opts.period) || selectedPeriod;
+  var startYear = (PERIODS[period] || PERIODS.all).startYear;
+
+  if (nums.length === 0) { alert('物差しと異なる対象を1つ以上選んでください'); return; }
+
+  var loading = document.getElementById('loading');
+  var canvas  = document.getElementById('myChart');
+  var title   = document.getElementById('chart-title');
+  var legendEl = document.getElementById('legend');
+
+  loading.style.display = 'block';
+  loading.textContent = 'データ取得中...';
+  canvas.style.display = 'none';
+  legendEl.innerHTML = '';
+  title.textContent = 'データ取得中...';
+
+  var tickers = Array.from(new Set(nums.concat([den])));
+  var maps = {};
+
+  Promise.all(tickers.map(function(t) {
+    return fetchData(t).then(function(data) {
+      maps[t] = toMap(data, startYear);
+    }).catch(function(e) {
+      console.warn('failed:', t, e);
+    });
+  })).then(function() {
+    if (!maps[den]) { loading.textContent = '物差しのデータ取得に失敗しました。'; return; }
+    var denMap = maps[den];
+    var datasets = [];
+
+    nums.forEach(function(num, idx) {
+      if (!maps[num]) return;
+      var numMap = maps[num];
+      var common = Object.keys(numMap).filter(function(t) { return denMap[t]; }).sort();
+      if (common.length === 0) return;
+      var labels = common.map(function(t) {
+        var parts = t.split('-');
+        var d = new Date(parseInt(parts[0]), parseInt(parts[1]), 1);
+        return d.toLocaleDateString('ja-JP', { year:'numeric', month:'short' });
+      });
+      var ratios = common.map(function(t) { return numMap[t] / denMap[t]; });
+      var base = ratios[0];
+      var normalized = ratios.map(function(r) { return parseFloat((r / base * 100).toFixed(2)); });
+      datasets.push({ ticker: num, labels: labels, data: normalized, color: COLORS[idx % COLORS.length] });
+    });
+
+    if (datasets.length === 0) { loading.textContent = '表示できるデータがありませんでした。'; updateHeadline([], den, period); return; }
+
+    var allLabels = datasets.reduce(function(a, d) { return d.labels.length > a.length ? d.labels : a; }, []);
+    title.textContent = '物差し：' + (LABELS[den] || den);
+    updateHeadline(datasets, den, period);
+    loading.style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('scale-note').style.display = 'block';
+
+    legendEl.innerHTML = '';
+
+    if (myChart) myChart.destroy();
+    myChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: allLabels,
+        datasets: datasets.map(function(d) {
+          return { label: LABELS[d.ticker] || d.ticker, data: d.data, borderColor: d.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 };
+        })
+      },
+      options: {
+        responsive: true,
+        layout: { padding: { right: 72 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + '：' + ctx.parsed.y; } } },
+          endLabel: true
+        },
+        scales: {
+          x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#2a2a3a' } },
+          y: {
+            type: 'logarithmic',
+            ticks: {
+              color: '#888',
+              maxTicksLimit: 8,
+              callback: function(val) {
+                if (val === 100) return '100';
+                if (val >= 1000) return (val/1000).toFixed(0) + 'k';
+                return Number.isInteger(Math.log10(val)) ? val : '';
+              }
+            },
+            grid: {
+              color: function(ctx) { return ctx.tick.value === 100 ? 'rgba(255,255,255,0.4)' : '#2a2a3a'; },
+              lineWidth: function(ctx) { return ctx.tick.value === 100 ? 2 : 1; }
+            }
+          }
+        }
+      },
+      plugins: [endLabelPlugin]
+    });
+  });
+}
+
+// ページロード時にシンプルビューを自動表示
+document.addEventListener('DOMContentLoaded', function() {
+  loadChart({ den: 'GLD', nums: ['JPY', 'SPY'], period: 'all' });
+});
+</script>
+</body>
+</html>
