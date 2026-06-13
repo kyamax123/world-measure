@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   // FREDで取得すべき系列の定義
   // invert: true の場合は逆数を返す（ドル円→円の価値に変換）
   const FRED_SERIES = {
-    'GLD': { series: 'GOLDAMGBD228NLBM', invert: false },
+    'GLD': { series: 'GOLDPMGBD228NLBM', invert: false },  // London PM fix（AM fixより流通量多）
     'JPY': { series: 'DEXJPUS',          invert: true  },
   };
 
@@ -40,7 +40,11 @@ async function handleFred(req, res, ticker, { series, invert }) {
     + '&observation_start=1960-01-01';
 
   const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!response.ok) return res.status(response.status).json({ error: 'FRED error: ' + response.status });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    console.error('FRED error', response.status, body);
+    return res.status(response.status).json({ error: 'FRED error: ' + response.status, detail: body });
+  }
 
   const json = await response.json();
   if (!json.observations) return res.status(404).json({ error: 'no FRED data' });
