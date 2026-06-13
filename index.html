@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>世界の物差し</title>
+<!-- OGP -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://world-measure.vercel.app">
+<meta property="og:title" content="世界の物差し ― 価格ではなく、価値を見る">
+<meta property="og:description" content="円・株・現金の価値を金や全世界株など複数の「物差し」で測りなおす。失われた30年やニクソンショック以降の変化が一目でわかる。">
+<meta property="og:image" content="https://world-measure.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="世界の物差し ― 価格ではなく、価値を見る">
+<meta name="twitter:description" content="円・株・現金の価値を金や全世界株など複数の「物差し」で測りなおす。失われた30年やニクソンショック以降の変化が一目でわかる。">
+<meta name="twitter:image" content="https://world-measure.vercel.app/og.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,7 +66,15 @@
   #share-bar { display: none; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
   .share-btn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid #333; border-radius: 8px; color: #888; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; transition: border-color 0.15s, color 0.15s; }
   .share-btn:hover { border-color: #818cf8; color: #c7d2fe; background: transparent; }
-  @media (max-width: 480px) { .share-btn { font-size: 0.8rem; padding: 8px 12px; } }
+
+  /* モバイル調整 */
+  @media (max-width: 480px) {
+    .chart-box { padding: 12px; }
+    #scale-note { font-size: 0.8rem !important; }
+    .share-btn { font-size: 0.85rem; padding: 10px 16px; }
+    .checkboxes label { padding: 8px 14px; }
+    .range-btn { flex: 1 1 calc(50% - 4px); min-width: 0; font-size: 0.8rem; }
+  }
 
   /* 注記 */
   .note-details { max-width: 960px; margin: 16px auto 0; }
@@ -375,7 +396,7 @@ function loadChart(opts) {
       },
       options: {
         responsive: true,
-        layout: { padding: { right: 72 } },
+        layout: { padding: { right: window.innerWidth <= 480 ? 50 : 72 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },

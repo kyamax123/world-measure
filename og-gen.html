@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>OGP画像生成</title></head>
+<body style="margin:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;padding:20px;">
+<p style="color:#888;font-family:sans-serif;margin-bottom:12px;">生成中… 自動でog.pngがダウンロードされます。完了後このタブを閉じてください。</p>
+<canvas id="c" style="max-width:100%;border:1px solid #333;border-radius:8px;"></canvas>
+<script>
+var W = 1200, H = 630;
+var c = document.getElementById('c');
+c.width = W; c.height = H;
+var ctx = c.getContext('2d');
+
+// 背景
+ctx.fillStyle = '#0f0f1a';
+ctx.fillRect(0, 0, W, H);
+
+// 左上アクセントグラデーション
+var g = ctx.createRadialGradient(0, 0, 0, 0, 0, 500);
+g.addColorStop(0, 'rgba(79,70,229,0.2)');
+g.addColorStop(1, 'rgba(79,70,229,0)');
+ctx.fillStyle = g;
+ctx.fillRect(0, 0, W, H);
+
+// 右側にチャート風の装飾ライン
+ctx.save();
+var linePoints = [[700,520],[770,390],[840,450],[920,260],[1000,330],[1080,160],[1160,90],[1200,60]];
+ctx.strokeStyle = 'rgba(129,140,248,0.18)';
+ctx.lineWidth = 3;
+ctx.lineJoin = 'round';
+ctx.beginPath();
+ctx.moveTo(linePoints[0][0], linePoints[0][1]);
+linePoints.forEach(function(p){ ctx.lineTo(p[0],p[1]); });
+ctx.stroke();
+
+// 下側に緑ライン（下落後回復ライン）
+var line2 = [[700,560],[760,580],[840,555],[920,570],[1000,540],[1080,560],[1160,535],[1200,520]];
+ctx.strokeStyle = 'rgba(52,211,153,0.14)';
+ctx.lineWidth = 3;
+ctx.beginPath();
+ctx.moveTo(line2[0][0], line2[0][1]);
+line2.forEach(function(p){ ctx.lineTo(p[0],p[1]); });
+ctx.stroke();
+ctx.restore();
+
+// 下部インディゴバー
+ctx.fillStyle = '#4f46e5';
+ctx.fillRect(0, H - 6, W, 6);
+
+// サイト名
+ctx.fillStyle = '#ffffff';
+ctx.font = 'bold 82px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+ctx.textBaseline = 'top';
+ctx.textAlign = 'left';
+ctx.fillText('世界の物差し', 80, 110);
+
+// EM DASH + サブタイトル
+ctx.fillStyle = '#818cf8';
+ctx.font = '34px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+ctx.fillText('― 価格ではなく、価値を見る', 80, 230);
+
+// 説明文1行目
+ctx.fillStyle = '#aaaaaa';
+ctx.font = '28px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+ctx.fillText('円・株・現金の価値を金や全世界株など', 80, 320);
+ctx.fillText('複数の「物差し」で測りなおす比較チャート。', 80, 365);
+
+// タグバッジ（角丸ボックス）
+function badge(x, y, w, h, r, bg, color, text) {
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.font = '22px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, x + 16, y + h / 2);
+}
+badge(80, 450, 300, 48, 10, '#1e1e2e', '#818cf8', '失われた30年を可視化');
+badge(398, 450, 288, 48, 10, '#1e1e2e', '#34d399', 'ニクソンショック以降');
+badge(704, 450, 216, 48, 10, '#1e1e2e', '#fb923c', '新NISA開始以降');
+
+// URL
+ctx.fillStyle = '#444444';
+ctx.font = '22px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+ctx.textBaseline = 'middle';
+ctx.textAlign = 'left';
+ctx.fillText('world-measure.vercel.app', 80, H - 38);
+
+// ダウンロード
+setTimeout(function() {
+  var a = document.createElement('a');
+  a.download = 'og.png';
+  a.href = c.toDataURL('image/png');
+  document.body.appendChild(a);
+  a.click();
+}, 200);
+</script>
+</body>
+</html>
