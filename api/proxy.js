@@ -6,36 +6,85 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: 'ticker is required' });
 
   const t = decodeURIComponent(ticker);
-  const r = range || 'max';
+
+  // FREDで取得すべき系列の定義
+  // invert: true の場合は逆数を返す（ドル円→円の価値に変換）
+  const FRED_SERIES = {
+    'GLD': { series: 'GOLDAMGBD228NLBM', invert: false },
+    'JPY': { series: 'DEXJPUS',          invert: true  },
+  };
 
   try {
-    // 円は長期データのあるUSDJPY=Xを使う
-    const symbol = t === 'JPY' ? 'USDJPY=X' : t;
-    
-    const url = 'https://query2.finance.yahoo.com/v8/finance/chart/' + symbol + '?interval=1mo&range=' + r + '&corsDomain=finance.yahoo.com';
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json',
-      }
-    });
-
-    if (!response.ok) return res.status(response.status).json({ error: 'yahoo error' });
-    const json = await response.json();
-    if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data' });
-
-    // 円の場合は逆数にする（「円の価値」として表示するため）
-    if (t === 'JPY') {
-      const result = json.chart.result[0];
-      const closes = result.indicators.quote[0].close;
-      result.indicators.quote[0].close = closes.map(function(v) {
-        return v ? 1 / v : null;
-      });
+    if (FRED_SERIES[t]) {
+      return await handleFred(req, res, t, FRED_SERIES[t]);
+    } else {
+      return await handleYahoo(req, res, t, range || 'max');
     }
-
-    return res.status(200).json(json);
-
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
+}
+
+// ── FRED ────────────────────────────────────────────────────────────────────
+
+async function handleFred(req, res, ticker, { series, invert }) {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'FRED_API_KEY not configured' });
+
+  const url = 'https://api.stlouisfed.org/fred/series/observations'
+    + '?series_id=' + series
+    + '&api_key=' + apiKey
+    + '&file_type=json'
+    + '&frequency=m'
+    + '&aggregation_method=eop'   // 月末値（Yahoo Financeの月次終値に相当）
+    + '&observation_start=1960-01-01';
+
+  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!response.ok) return res.status(response.status).json({ error: 'FRED error: ' + response.status });
+
+  const json = await response.json();
+  if (!json.observations) return res.status(404).json({ error: 'no FRED data' });
+
+  // FREDレスポンス → Yahoo Finance chart形式に変換してフロント側を共通化する
+  const timestamps = [];
+  const closes     = [];
+
+  for (const obs of json.observations) {
+    if (obs.value === '.') continue;   // 欠損値はスキップ
+    const v = parseFloat(obs.value);
+    if (isNaN(v) || v <= 0) continue;
+
+    // "2024-01-01" → Unix秒（月初）
+    timestamps.push(Math.floor(new Date(obs.date).getTime() / 1000));
+    closes.push(invert ? 1 / v : v);
+  }
+
+  // Yahoo Finance chart APIと同じ形式で返す
+  return res.status(200).json({
+    chart: {
+      result: [{
+        timestamp: timestamps,
+        indicators: { quote: [{ close: closes }] }
+      }]
+    }
+  });
+}
+
+// ── Yahoo Finance ────────────────────────────────────────────────────────────
+
+async function handleYahoo(req, res, ticker, range) {
+  const symbol = ticker;
+
+  const url = 'https://query2.finance.yahoo.com/v8/finance/chart/'
+    + symbol + '?interval=1mo&range=' + range + '&corsDomain=finance.yahoo.com';
+
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+  });
+
+  if (!response.ok) return res.status(response.status).json({ error: 'yahoo error' });
+  const json = await response.json();
+  if (!json.chart?.result?.[0]) return res.status(404).json({ error: 'no data' });
+
+  return res.status(200).json(json);
 }

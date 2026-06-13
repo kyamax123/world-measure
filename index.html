@@ -212,6 +212,7 @@ function setPeriod(btn, period) {
 }
 
 function fetchData(ticker) {
+  // GLD・JPYはFREDへルーティング（proxy.js側で切り替え）、他はYahoo Finance
   return fetch('/api/proxy?ticker=' + encodeURIComponent(ticker) + '&range=max')
     .then(function(r) { return r.json(); })
     .then(function(json) {
