@@ -186,9 +186,17 @@ function updateHeadline(datasets, den, range) {
   var up = pct >= 0;
   var color = up ? '#34d399' : '#f87171';
   var arrow = up ? '▲' : '▼';
-  var valueStr = (times >= 3 || times <= 0.334)
-    ? times.toFixed(2) + '倍'
-    : Math.abs(pct).toFixed(0) + '%';
+  var valueStr;
+  if (times < 0.5) {
+    // 半値以下の大幅下落 → 「▼XX%下落」
+    valueStr = Math.round((1 - times) * 100) + '%下落';
+  } else if (times >= 2) {
+    // 2倍以上の大幅上昇 → 「▲X.X倍」
+    valueStr = times.toFixed(1) + '倍';
+  } else {
+    // 中間（±50%以内）→ 「▲XX%」「▼XX%」
+    valueStr = Math.round(Math.abs(pct)) + '%';
+  }
 
   var denLabel = LABELS[den] || den;
   var assetLabel = LABELS[star.d.ticker] || star.d.ticker;
