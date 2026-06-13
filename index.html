@@ -49,6 +49,12 @@
   .range-btn.active:hover { background: #4338ca !important; }
   .range-year { display: block; font-size: 0.72rem; opacity: 0.7; margin-top: 2px; }
 
+  /* 保存・共有バー */
+  #share-bar { display: none; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .share-btn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid #333; border-radius: 8px; color: #888; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; transition: border-color 0.15s, color 0.15s; }
+  .share-btn:hover { border-color: #818cf8; color: #c7d2fe; background: transparent; }
+  @media (max-width: 480px) { .share-btn { font-size: 0.8rem; padding: 8px 12px; } }
+
   /* 注記 */
   .note-details { max-width: 960px; margin: 16px auto 0; }
   .note-details summary { text-align: center; font-size: 0.78rem; color: #555; cursor: pointer; padding: 4px; }
@@ -74,6 +80,10 @@
   <div class="legend" id="legend"></div>
   <div class="loading" id="loading"></div>
   <canvas id="myChart" style="display:none;"></canvas>
+  <div id="share-bar">
+    <button class="share-btn" onclick="downloadChart()">💾 保存・引用</button>
+    <button class="share-btn" onclick="shareToX()">𝕏 Xで共有</button>
+  </div>
 </div>
 
 <button id="detail-toggle" onclick="toggleDetail()">もっと詳しく測る ▼</button>
@@ -162,6 +172,9 @@ var PERIODS = {
 };
 var myChart = null;
 var selectedPeriod = 'all';
+var currentDen = 'GLD';
+var currentPeriod = 'all';
+var currentHeadlineValue = '';
 
 // ② 詳細パネルの開閉
 function toggleDetail() {
@@ -211,6 +224,11 @@ function updateHeadline(datasets, den, range) {
     '<div class="headline-value" style="color:' + color + '">' + arrow + valueStr + '</div>' +
     '<div class="headline-sub">' + periodStr + '</div>';
   el.style.display = 'block';
+
+  // 共有用に状態を保存
+  currentDen = den;
+  currentPeriod = range;
+  currentHeadlineValue = arrow + valueStr;
 }
 
 function setPeriod(btn, period) {
@@ -344,6 +362,7 @@ function loadChart(opts) {
     document.getElementById('scale-note').style.display = 'block';
 
     legendEl.innerHTML = '';
+    document.getElementById('share-bar').style.display = 'flex';
 
     if (myChart) myChart.destroy();
     myChart = new Chart(canvas, {
@@ -386,6 +405,68 @@ function loadChart(opts) {
       plugins: [endLabelPlugin]
     });
   });
+}
+
+// ── 保存・共有 ──────────────────────────────────────────────────────────────
+
+function downloadChart() {
+  if (!myChart) return;
+  var src = myChart.canvas;
+  var W = src.width;
+  var H = src.height;
+  var scale = W / 900;           // retina等の倍率を吸収
+  var HEADER = Math.round(70 * scale);
+  var FOOTER = Math.round(44 * scale);
+
+  var out = document.createElement('canvas');
+  out.width  = W;
+  out.height = H + HEADER + FOOTER;
+  var ctx = out.getContext('2d');
+
+  // 背景
+  ctx.fillStyle = '#0f0f1a';
+  ctx.fillRect(0, 0, W, out.height);
+
+  // ヘッダー：サイト名
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold ' + Math.round(18 * scale) + 'px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText('🌍 世界の物差し', Math.round(20 * scale), Math.round(22 * scale));
+
+  // ヘッダー：条件
+  ctx.fillStyle = '#888888';
+  ctx.font = Math.round(13 * scale) + 'px sans-serif';
+  var condLabel = (LABELS[currentDen] || currentDen) + '建て・' + (PERIODS[currentPeriod] || PERIODS.all).label;
+  ctx.fillText(condLabel, Math.round(20 * scale), Math.round(50 * scale));
+
+  // チャート本体
+  ctx.drawImage(src, 0, HEADER);
+
+  // フッター：URL（左）
+  var footerMid = H + HEADER + Math.round(FOOTER / 2);
+  ctx.fillStyle = '#555555';
+  ctx.font = Math.round(12 * scale) + 'px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('world-measure.vercel.app', Math.round(20 * scale), footerMid);
+
+  // フッター：取得日（右）
+  var today = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  ctx.textAlign = 'right';
+  ctx.fillText('取得日：' + today, W - Math.round(20 * scale), footerMid);
+
+  // ダウンロード
+  var a = document.createElement('a');
+  a.download = 'world-measure.png';
+  a.href = out.toDataURL('image/png');
+  a.click();
+}
+
+function shareToX() {
+  var denLabel    = LABELS[currentDen] || currentDen;
+  var periodLabel = (PERIODS[currentPeriod] || PERIODS.all).label;
+  var text = denLabel + '建てで測ると、' + periodLabel + 'で' + currentHeadlineValue + '。｜世界の物差し https://world-measure.vercel.app';
+  window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
 }
 
 // ページロード時にシンプルビューを自動表示
