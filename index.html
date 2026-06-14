@@ -113,8 +113,8 @@
   <div class="panel">
     <div class="panel-title">📐 物差し（分母）を選ぶ</div>
     <select id="denominator">
+      <option value="VT">全世界株（オルカン）</option>
       <option value="GLD">金（GLD）</option>
-      <option value="VT">オルカン（VT）</option>
       <option value="SPY">S&P500（SPY）</option>
       <option value="BTC-USD">Bitcoin</option>
       <option value="SLV">銀（SLV）</option>
@@ -129,9 +129,9 @@
   <div class="panel">
     <div class="panel-title">🔭 測る対象（複数選択可）</div>
     <div class="checkboxes" id="numerators">
-      <label><input type="checkbox" value="SPY" checked> S&P500</label>
       <label><input type="checkbox" value="VT"> オルカン</label>
-      <label><input type="checkbox" value="GLD"> 金</label>
+      <label><input type="checkbox" value="SPY" checked> S&P500</label>
+      <label><input type="checkbox" value="GLD" checked> 金</label>
       <label><input type="checkbox" value="BTC-USD"> Bitcoin</label>
       <label><input type="checkbox" value="JPY" checked> 円</label>
       <label><input type="checkbox" value="QQQ"> NASDAQ100</label>
@@ -154,14 +154,13 @@
     </div>
   </div>
   <div style="text-align:center;margin-bottom:20px;">
-    <button onclick="loadChart()">表示する</button>
+    <button onclick="loadChart({ userAction: true })">表示する</button>
   </div>
 </div>
 
 <details class="note-details snapshot-details" id="snapshot-section" style="display:none;">
   <summary>📅 月次定点観測</summary>
   <div class="note-body">
-    <p style="margin-bottom:12px;color:#888;">毎月の「今月の一行」を手動で記録した定点観測ログです。</p>
     <table id="snapshot-table">
       <tr>
         <td style="color:#666;font-size:0.74rem;">月</td>
@@ -273,7 +272,7 @@ function setPeriod(btn, period) {
   selectedPeriod = period;
   document.querySelectorAll('.range-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  loadChart();
+  loadChart({ userAction: true });
 }
 
 // CDNキャッシュバイパス用：1時間ごとに変わるキー（エラーキャッシュの回避）
@@ -340,11 +339,12 @@ var endLabelPlugin = {
   }
 };
 
-// opts: { den, nums, period } — 省略時はパネルの選択値を使う
+// opts: { den, nums, period, userAction } — 省略時はパネルの選択値を使う
 function loadChart(opts) {
-  var den    = (opts && opts.den)    || document.getElementById('denominator').value;
-  var nums   = (opts && opts.nums)   || Array.from(document.querySelectorAll('#numerators input:checked')).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
-  var period = (opts && opts.period) || selectedPeriod;
+  var den        = (opts && opts.den)    || document.getElementById('denominator').value;
+  var nums       = (opts && opts.nums)   || Array.from(document.querySelectorAll('#numerators input:checked')).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
+  var period     = (opts && opts.period) || selectedPeriod;
+  var userAction = opts && opts.userAction;  // 集計対象かどうか（初期表示はfalse）
   var startYear = (PERIODS[period] || PERIODS.all).startYear;
 
   if (nums.length === 0) { alert('物差しと異なる対象を1つ以上選んでください'); return; }
@@ -536,7 +536,7 @@ function loadSnapshots() {
 
 // ページロード時にシンプルビューを自動表示
 document.addEventListener('DOMContentLoaded', function() {
-  loadChart({ den: 'GLD', nums: ['JPY', 'SPY'], period: 'all' });
+  loadChart({ den: 'VT', nums: ['JPY', 'GLD'], period: 'all', userAction: false });
   loadSnapshots();
 });
 </script>
