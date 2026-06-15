@@ -158,6 +158,13 @@
   </div>
 </div>
 
+<div id="den-stats" style="display:none;max-width:960px;margin:24px auto 0;">
+  <div style="background:#1e1e2e;border-radius:12px;padding:16px 20px;">
+    <div style="font-size:0.78rem;color:#555;margin-bottom:12px;">今、選ばれている物差し</div>
+    <div id="den-stats-bars"></div>
+  </div>
+</div>
+
 <details class="note-details snapshot-details" id="snapshot-section" style="display:none;">
   <summary>📅 月次定点観測</summary>
   <div class="note-body">
@@ -345,6 +352,9 @@ function loadChart(opts) {
   var nums       = (opts && opts.nums)   || Array.from(document.querySelectorAll('#numerators input:checked')).map(function(c) { return c.value; }).filter(function(v) { return v !== den; });
   var period     = (opts && opts.period) || selectedPeriod;
   var userAction = opts && opts.userAction;  // 集計対象かどうか（初期表示はfalse）
+  if (userAction && !localStorage.getItem('wm_admin')) {
+    fetch('/api/count', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ den: den }) }).catch(function(){});
+  }
   var startYear = (PERIODS[period] || PERIODS.all).startYear;
 
   if (nums.length === 0) { alert('物差しと異なる対象を1つ以上選んでください'); return; }
@@ -507,6 +517,36 @@ function shareToX() {
   window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
 }
 
+// 物差し選択統計の読み込みと表示
+function loadDenStats() {
+  fetch('/api/count')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var total = Object.values(data).reduce(function(s, v) { return s + v; }, 0);
+      if (total === 0) return;
+      var sorted = Object.entries(data).sort(function(a, b) { return b[1] - a[1]; });
+      var bars = document.getElementById('den-stats-bars');
+      bars.innerHTML = '';
+      sorted.forEach(function(entry) {
+        var key = entry[0], count = entry[1];
+        var pct = Math.round(count / total * 100);
+        var label = LABELS[key] || key;
+        var color = COLORS[['VT','GLD','SPY','BTC-USD','SLV','UUP','JPY','TLT','QQQ'].indexOf(key) % COLORS.length];
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
+        row.innerHTML =
+          '<div style="width:80px;font-size:0.78rem;color:#aaa;text-align:right;flex-shrink:0;">' + label + '</div>' +
+          '<div style="flex:1;background:#2a2a3e;border-radius:4px;height:10px;">' +
+            '<div style="width:' + pct + '%;background:' + color + ';height:10px;border-radius:4px;transition:width 0.4s;"></div>' +
+          '</div>' +
+          '<div style="width:36px;font-size:0.78rem;color:#555;flex-shrink:0;">' + pct + '%</div>';
+        bars.appendChild(row);
+      });
+      document.getElementById('den-stats').style.display = 'block';
+    })
+    .catch(function() {});
+}
+
 // 月次定点観測ログの読み込み
 function loadSnapshots() {
   fetch('/snapshots.json?_v=' + CACHE_KEY)
@@ -538,6 +578,7 @@ function loadSnapshots() {
 document.addEventListener('DOMContentLoaded', function() {
   loadChart({ den: 'VT', nums: ['JPY', 'GLD'], period: 'all', userAction: false });
   loadSnapshots();
+  loadDenStats();
 });
 </script>
 </body>
