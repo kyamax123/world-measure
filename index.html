@@ -576,7 +576,7 @@ function loadSnapshots() {
 
 // ページロード時にシンプルビューを自動表示
 document.addEventListener('DOMContentLoaded', function() {
-  loadChart({ den: 'VT', nums: ['JPY', 'GLD'], period: 'all', userAction: false });
+  loadChart({ den: 'VT', nums: ['JPY', 'GLD'], period: 'all', userAction: true });
   loadSnapshots();
   loadDenStats();
 });
