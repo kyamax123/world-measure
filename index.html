@@ -160,8 +160,12 @@
 
 <div id="den-stats" style="display:none;max-width:960px;margin:24px auto 0;">
   <div style="background:#1e1e2e;border-radius:12px;padding:16px 20px;">
-    <div style="font-size:0.78rem;color:#555;margin-bottom:12px;">今、選ばれている物差し</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
+      <div style="font-size:0.78rem;color:#555;">今、選ばれている物差し</div>
+      <div id="den-stats-status" style="font-size:0.72rem;color:#666;"></div>
+    </div>
     <div id="den-stats-bars"></div>
+    <div id="den-stats-total" style="font-size:0.72rem;color:#444;margin-top:12px;text-align:right;"></div>
   </div>
 </div>
 
@@ -518,30 +522,51 @@ function shareToX() {
 }
 
 // 物差し選択統計の読み込みと表示
+// 合計がこの値未満のうちは割合を出さず票数のみ表示する（少数データの割合の一人歩きを防ぐ）
+var STATS_THRESHOLD = 30;
+
 function loadDenStats() {
   fetch('/api/count')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var total = Object.values(data).reduce(function(s, v) { return s + v; }, 0);
       if (total === 0) return;
+      var ready = total >= STATS_THRESHOLD;  // 閾値到達後に割合表示へ切り替わる
       var sorted = Object.entries(data).sort(function(a, b) { return b[1] - a[1]; });
+      var maxCount = sorted[0][1];  // 票数モードの棒の長さ基準
       var bars = document.getElementById('den-stats-bars');
       bars.innerHTML = '';
       sorted.forEach(function(entry) {
         var key = entry[0], count = entry[1];
-        var pct = Math.round(count / total * 100);
         var label = LABELS[key] || key;
         var color = COLORS[['VT','GLD','SPY','BTC-USD','SLV','UUP','JPY','TLT','QQQ'].indexOf(key) % COLORS.length];
+        var barWidth, valueText;
+        if (ready) {
+          var pct = Math.round(count / total * 100);
+          barWidth = pct;
+          valueText = pct + '%（' + count + '票）';
+        } else {
+          // 閾値未満：%は完全に隠し、票数のみ。棒は最多票を基準にした相対長
+          barWidth = maxCount > 0 ? Math.round(count / maxCount * 100) : 0;
+          valueText = count + '票';
+        }
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
         row.innerHTML =
           '<div style="width:80px;font-size:0.78rem;color:#aaa;text-align:right;flex-shrink:0;">' + label + '</div>' +
           '<div style="flex:1;background:#2a2a3e;border-radius:4px;height:10px;">' +
-            '<div style="width:' + pct + '%;background:' + color + ';height:10px;border-radius:4px;transition:width 0.4s;"></div>' +
+            '<div style="width:' + barWidth + '%;background:' + color + ';height:10px;border-radius:4px;transition:width 0.4s;"></div>' +
           '</div>' +
-          '<div style="width:36px;font-size:0.78rem;color:#555;flex-shrink:0;">' + pct + '%</div>';
+          '<div style="width:72px;font-size:0.78rem;color:#888;flex-shrink:0;">' + valueText + '</div>';
         bars.appendChild(row);
       });
+
+      // 見出し（閾値未満は「集計中」）と総観測数
+      var statusEl = document.getElementById('den-stats-status');
+      statusEl.textContent = ready ? '' : '集計中（n=' + total + '）';
+      document.getElementById('den-stats-total').textContent =
+        'これまで ' + total + '回、物差しが選ばれました';
+
       document.getElementById('den-stats').style.display = 'block';
     })
     .catch(function() {});
